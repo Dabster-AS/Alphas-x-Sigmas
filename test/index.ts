@@ -43,7 +43,7 @@ describe("", function () {
     axs = await Axs.deploy();
 
     AlphasSigmas = await ethers.getContractFactory("AlphasSigmas");
-    alphasSigmas = await AlphasSigmas.deploy('0xa111C225A0aFd5aD64221B1bc1D5d817e5D3Ca15');
+    alphasSigmas = await AlphasSigmas.deploy(axs.address);
 
     await Promise.all([
       axs.deployed(),
@@ -78,6 +78,63 @@ describe("", function () {
         "address already minted NFT"
       );
     });
+  });
+
+  describe("AlphasSigmas", function () {
+    it("should have correct Club NFT address", async function () {
+      const alphasSigmasAddress = await alphasSigmas.clubNFTAddress()
+      expect(alphasSigmasAddress).to.equal(axs.address);
+    });
+    it("should not be able to mint without club NFT", async function () {
+      await expect(alphasSigmas.clubPassMintFemle()).to.be.revertedWith(
+        "address not eligible"
+      );
+    });
+    it("should be able to mint one of each sex for free with club nft", async function () {
+      await axs.safeMint(owner.address);
+      let bal = (await axs.balanceOf(owner.address)).toNumber();
+      expect(bal).to.equal(1);
+
+      await alphasSigmas.clubPassMintFemle();
+      bal = (await alphasSigmas.balanceOf(owner.address)).toNumber();
+      expect(bal).to.equal(1)
+      await expect(alphasSigmas.clubPassMintFemle()).to.be.revertedWith(
+        "address not eligible"
+      );
+
+      await alphasSigmas.clubPassMintMale();
+      bal = (await alphasSigmas.balanceOf(owner.address)).toNumber();
+      expect(bal).to.equal(2)
+      await expect(alphasSigmas.clubPassMintMale()).to.be.revertedWith(
+        "address not eligible"
+      );
+    });
+    it("should not be able to mint with wrong ether amount", async function () {
+      await expect(alphasSigmas.publicFemaleMint({ value: ethers.utils.parseEther("0.45") })).to.be.revertedWith(
+        "not correct amount"
+      );
+      await expect(alphasSigmas.publicFemaleMint({ value: ethers.utils.parseEther("0.55") })).to.be.revertedWith(
+        "not correct amount"
+      );
+      await expect(alphasSigmas.publicMaleMint({ value: ethers.utils.parseEther("0.45") })).to.be.revertedWith(
+        "not correct amount"
+      );
+      await expect(alphasSigmas.publicMaleMint({ value: ethers.utils.parseEther("0.55") })).to.be.revertedWith(
+        "not correct amount"
+      );
+    });
+    it("should be able to perform a public mint", async function() {
+      await alphasSigmas.publicFemaleMint({ value: ethers.utils.parseEther("0.5") });
+      let bal = (await alphasSigmas.balanceOf(owner.address)).toNumber();
+      expect(bal).to.equal(1)
+
+      await alphasSigmas.publicMaleMint({ value: ethers.utils.parseEther("0.5") });
+      bal = (await alphasSigmas.balanceOf(owner.address)).toNumber();
+      expect(bal).to.equal(2)
+    });
+
+    // TODO several stages for alphassigmas mint
+    // TODO payout from the contract 
   });
 })
 
